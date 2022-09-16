@@ -140,22 +140,22 @@ class CoolingCooling(State):
 def _heating_cooling_step(state: State) -> State:
     if isinstance(state, HeatingCooling):
         return state
-    else:
-        return HeatingCooling(state.temp1, state.temp2)
+
+    return HeatingCooling(state.temp1, state.temp2)
 
 
 def _cooling_heating_step(state: State) -> State:
     if isinstance(state, CoolingHeating):
         return state
-    else:
-        return CoolingHeating(state.temp1, state.temp2)
+
+    return CoolingHeating(state.temp1, state.temp2)
 
 
 def _cooling_cooling_step(state: State) -> State:
     if isinstance(state, CoolingCooling):
         return state
-    else:
-        return CoolingCooling(state.temp1, state.temp2)
+
+    return CoolingCooling(state.temp1, state.temp2)
 
 
 def controller(state: State, step_size: float, params: SystemParameters) -> State:
