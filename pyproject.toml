@@ -10,7 +10,9 @@ authors = ["Quinn Thibeault"]
 license = "BSD-3-Clause"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8,<3.11"
+psy-taliro = "^1.0.0b7"
+numpy = "^1.23.3"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"
