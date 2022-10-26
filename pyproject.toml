@@ -37,6 +37,12 @@ line_length = 100
 files = ["thermostat.py"]
 strict = true
 
+[tool.pyright]
+include = ["src/thermostat.py", "src/instrumentation/*.py"]
+venvPath = "."
+venv = "./.venv"
+typeCheckingMode = "strict"
+
 [tool.pylint.main]
 # Analyse import fallback blocks. This can be used to support both Python 2 and 3
 # compatible code, which means that the block might have code that exists only in
