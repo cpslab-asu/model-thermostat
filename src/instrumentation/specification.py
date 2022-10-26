@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from itertools import repeat
+from math import inf
 from operator import itemgetter
 from typing import Sequence, TypedDict
 
@@ -23,12 +25,33 @@ class _Guard(TypedDict):
     b: NDArray[numpy.float_]
 
 
+def _row_from_condition(condition: Condition, indicies: dict[str, int]) -> tuple[list[float], float]:
+    coefficients = list(repeat(0.0, len(indicies)))
+    bound = 0.0
+
+    for variable in condition.variables:
+        index = indicies[variable]
+        coefficients[index] = 1.0
+
+    return coefficients, bound
+
+
 def _guard_from_conditions(conditions: Sequence[Condition], indices: dict[str, int]) -> _Guard:
-    pass
+    rows = [_row_from_condition(condition, indices) for condition in conditions]
+    guard: _Guard = {
+        "a": numpy.array(row[0] for row in rows),
+        "b": numpy.array(row[1] for row in rows)
+    }
+
+    return guard
 
 
 class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance]):
     """Hybrid distance specification."""
+
+    @property
+    def failure_cost(self) -> HybridDistance:
+        return (-inf, -inf)
 
     def __init__(self) -> None:
         trees = BranchTree.from_function(controller)
@@ -53,10 +76,11 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
             for s2 in self.kripke.states_from(s1)
         }
 
-    def evaluate(self, states: _States, times: Sequence[float]) -> HybridDistance:
-        states_ = [(output.state.temp1, output.state.temp2) for output in states]
+    def evaluate(self, state: _States, timestamps: Sequence[float]) -> HybridDistance:
+        states_ = [(output.state.temp1, output.state.temp2) for output in state]
         locations: list[float] = []
         get_distances = itemgetter("ds", "dl")
-        robustness = self.spec.hybrid(states_, times, locations, self.adj_list, self.guards)
+        robustness = self.spec.hybrid(states_, timestamps, locations, self.adj_list, self.guards)
 
         return get_distances(robustness)
+
