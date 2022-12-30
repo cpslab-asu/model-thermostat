@@ -18,7 +18,7 @@ packages = [
 python = ">=3.10,<3.11"
 psy-taliro = "^1.0.0b7"
 numpy = "^1.23.3"
-branch-statement-analyzer = { git = "git@github.com:cpslab-asu/branch-statement-analyzer", rev = "3540b2e" }
+branch-statement-analyzer = { git = "git@github.com:cpslab-asu/branch-statement-analyzer", rev = "e33e285" }
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"
