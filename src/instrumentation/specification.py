@@ -1,70 +1,33 @@
 from __future__ import annotations
 
-from itertools import count
 from math import inf
-from operator import itemgetter
 from pprint import pprint
-from typing import Sequence, TypedDict
+from typing import Sequence, TypeAlias
 
-import numpy
+from banquo import HybridPredicate, hybrid_distance
 from bsa.branches import BranchTree, Condition, Comparison
-from bsa.kripke import Kripke, State
-from numpy.typing import NDArray
+from bsa.kripke import Kripke
 from staliro.core.specification import Specification
-from staliro.specifications import TaliroPredicate, TpTaliro
-from typing_extensions import TypeAlias
 
 from thermostat import controller
 
 from .model import InstrumentedOutput
 
-HybridDistance: TypeAlias = tuple[float, float]
-_States: TypeAlias = Sequence[InstrumentedOutput]
+
+def _coverage_requirement(predicate_names: Sequence[str]) -> str:
+    if len(predicate_names) == 0:
+        raise ValueError("Cannot construct coverage formula with no predicates")
+
+    predicate_name = predicate_names[0]
+
+    if len(predicate_names) == 1:
+        return f"<> {predicate_name}"
+
+    left_subformula = _coverage_requirement(predicate_names[1:])
+    return rf"(<> {predicate_name}) /\ ({left_subformula})"
 
 
-class _Guard(TypedDict):
-    a: NDArray[numpy.float_]
-    b: NDArray[numpy.float_]
-
-
-def _row_from_condition(condition: Condition, indices: dict[str, int]) -> tuple[list[float], float]:
-    coefficients = [0.0 for _ in indices]
-    bound = 0.0
-    cmp = condition.comparison
-    var_index = indices[condition.variable]
-
-    if isinstance(condition.bound, int):
-        if cmp is Comparison.LTE:
-            coefficients[var_index] = 1.0
-            bound = condition.bound
-        elif cmp is Comparison.GTE:
-            coefficients[var_index] = -1.0
-            bound = -condition.bound
-
-    if isinstance(condition.bound, str):
-        bnd_index = indices[condition.bound]
-
-        if cmp is Comparison.LTE:
-            coefficients[var_index] = 1.0
-            coefficients[bnd_index] = -1.0
-        elif cmp is Comparison.GTE:
-            coefficients[var_index] = -1.0
-            coefficients[bnd_index] = 1.0
-
-    return coefficients, bound
-
-
-def _guard_from_conditions(conditions: Sequence[Condition], indices: dict[str, int]) -> _Guard:
-    rows = [_row_from_condition(condition, indices) for condition in conditions]
-    guard: _Guard = {
-        "a": numpy.array([row[0] for row in rows]),
-        "b": numpy.array([row[1] for row in rows]),
-    }
-
-    return guard
-
-
-def _active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> State:
+def _active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> str:
     matching_states = [
         state for state in kripke.states 
         if all(label.is_true(variables) for label in kripke.labels_for(state))
@@ -72,30 +35,24 @@ def _active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> Sta
 
     assert len(matching_states) == 1, f"More than one state active given variables {variables}"
 
-    return matching_states[0]
+    return str(matching_states[0])
 
 
-def _location(kripke: Kripke[Condition], variables: dict[str, float], state_map: dict[State, int]) -> float:
-    state = _active_state(kripke, variables)
-    location = state_map[state]
+def _condition_into_str(cond: Condition) -> str:
+    if cond.comparison == Comparison.LTE:
+        return f"{cond.variable} <= {cond.bound}"
+    elif cond.comparison == Comparison.GTE:
+        return f"{cond.bound} <= {cond.variable}"
+    else:
+        raise ValueError(f"{cond.comparison} is not a Comparison")
 
-    return float(location)
 
+_States: TypeAlias = Sequence[InstrumentedOutput]
+_Times: TypeAlias = Sequence[float]
+_VariableMap: TypeAlias = dict[str, float]
+_HybridTrace: TypeAlias = dict[float, tuple[_VariableMap, str]]
 
-def _map_variables(variables: dict[str, float], index_map: dict[str, int]) -> list[float]:
-    assert all(name in index_map for name in variables), "Missing variable name in index map"
-
-    row = [0.0] * len(index_map)
-
-    for var_name, var_index in index_map.items():
-        try:
-            var_value = variables[var_name]
-        except KeyError:
-            continue
-        else:
-            row[var_index] = var_value
-
-    return row
+HybridDistance: TypeAlias = tuple[float, float]
 
 
 class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance]):
@@ -113,47 +70,29 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
         tree = trees[0]
         kripkes = tree.as_kripke()
 
+        assert len(kripkes) == 1
+
         self.kripke = kripkes[0]
-        self.state_index_map: dict[State, int] = dict(zip(self.kripke.states, count(start=1)))
-
-        predicates = [
-            TaliroPredicate(
-                name=f"s{i}",
-                A=numpy.array([0] * len(tree.variables), ndmin=2, dtype=numpy.double),
-                b=numpy.array([0], ndmin=2, dtype=numpy.double),
-                l=numpy.array([i], ndmin=2, dtype=numpy.double),
-            )
-            for i in self.state_index_map.values()
-        ]
-
-        self.spec = TpTaliro(r"<> s1 /\ <> s2 /\ <> s3 /\ <> s4 /\ <> s5", predicates)
-        self.adj_list: dict[str, list[str]] = {
-            str(s1): [str(s2) for s2 in self.kripke.states_from(s1)]
-            for s1 in self.state_index_map.keys()
+        self.predicates = {
+            f"s{i}": HybridPredicate(None, str(state)) for i, state in enumerate(self.kripke.states)
         }
-        self.variable_index_map: dict[str, int] = dict(zip(tree.variables, count(start=0)))
-        self.guards: dict[tuple[str, str], _Guard] = {
-            (str(s1), str(s2)): _guard_from_conditions(self.kripke.labels_for(s2), self.variable_index_map)
+        self.guards = {
+            (str(s1), str(s2)): [_condition_into_str(c) for c in self.kripke.labels_for(s2)]
             for s1 in self.kripke.states
             for s2 in self.kripke.states_from(s1)
         }
 
-        pprint(self.variable_index_map)
+        predicate_names = list(self.predicates.keys())
+        self.formula = _coverage_requirement(predicate_names)
+
+        print(self.formula)
         pprint(self.guards)
 
-        raise RuntimeError()
+    def evaluate(self, state: _States, timestamps: _Times) -> HybridDistance:
+        trace: _HybridTrace = {
+            time: (output.variables, _active_state(self.kripke, output.variables))
+            for time, output in zip(timestamps, state)
+        }
 
-    def evaluate(self, state: _States, timestamps: Sequence[float]) -> HybridDistance:
-        states_: list[list[float]] = [
-            _map_variables(output.variables, self.variable_index_map) for output in state
-        ]
-
-        locations: list[float] = [
-            _location(self.kripke, output.variables, self.state_index_map) for output in state
-        ]
-
-        get_distances = itemgetter("ds", "dl")
-        robustness = self.spec.hybrid(states_, timestamps, locations, self.adj_list, self.guards)
-
-        return get_distances(robustness)
+        return hybrid_distance(self.formula, self.predicates, self.guards, trace)
 
