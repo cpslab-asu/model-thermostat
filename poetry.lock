@@ -47,6 +47,22 @@ tests = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy", "pympl
 tests-no-zope = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "six"]
 
 [[package]]
+name = "banquo"
+version = "0.1.0"
+description = ""
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "git@github.com:cpslab-asu/banquo-python"
+reference = "6bb5d98"
+resolved_reference = "6bb5d98c2b809ed0561eb88c7ca983fddf04ba48"
+
+[[package]]
 name = "black"
 version = "22.12.0"
 description = "The uncompromising code formatter."
@@ -97,8 +113,8 @@ typing-extensions = "^4.3.0"
 [package.source]
 type = "git"
 url = "git@github.com:cpslab-asu/branch-statement-analyzer"
-reference = "e33e285"
-resolved_reference = "e33e285e28d563ca27cc413b0ef82b9abb634f3b"
+reference = "af45d5d"
+resolved_reference = "af45d5d09f7d23bf9dcea8e8e5b2b4b9ef1c504a"
 
 [[package]]
 name = "click"
@@ -1001,4 +1017,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.11"
-content-hash = "0077e30dcd5e8095230ba6a30b021c149c37ca7d587fa497c4f37ab80bb30ed6"
+content-hash = "2a06ad5c7bef5eea7bafd3ad750d551171974c255d94cd7c377f8f6637257a2f"
