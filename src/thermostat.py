@@ -169,15 +169,17 @@ def controller(state: State, step_size: float, params: SystemParameters) -> Stat
         The next state
     """
 
-    room1_lower, room1_upper = params.op_range[0]
-    room2_lower, room2_upper = params.op_range[1]
+    lr1, hr1 = params.op_range[0]
+    lr2, hr2 = params.op_range[1]
+    temp1 = state.temp1
+    temp2 = state.temp2
 
-    if state.temp1 <= room1_lower:
+    if temp1 <= lr1:
         next_state = _heating_cooling_step(state)
-    elif state.temp1 >= room1_upper:
-        if state.temp2 <= room2_lower:
+    elif temp1 >= hr1:
+        if temp2 <= lr2:
             next_state = _cooling_heating_step(state)
-        elif state.temp2 >= room2_upper:
+        elif temp2 >= hr2:
             next_state = _cooling_cooling_step(state)
         else:
             next_state = state
