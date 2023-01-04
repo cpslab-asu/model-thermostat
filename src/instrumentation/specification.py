@@ -6,7 +6,7 @@ from typing import Sequence, TypeAlias
 
 from banquo import HybridPredicate, hybrid_distance
 from bsa.branches import BranchTree, Condition, Comparison
-from bsa.kripke import Kripke
+from bsa.kripke import Kripke, State
 from staliro.core.specification import Specification
 
 from thermostat import controller
@@ -47,6 +47,13 @@ def _condition_into_str(cond: Condition) -> str:
         raise ValueError(f"{cond.comparison} is not a Comparison")
 
 
+def _edge_guards(kripke: Kripke[Condition], start: State, end: State) -> list[str]:
+    start_variables = set(v for l in kripke.labels_for(start) for v in l.variables)
+    valid_guards = filter(lambda l: l.variables <= start_variables, kripke.labels_for(end))
+
+    return [_condition_into_str(g) for g in valid_guards]
+
+
 _States: TypeAlias = Sequence[InstrumentedOutput]
 _Times: TypeAlias = Sequence[float]
 _VariableMap: TypeAlias = dict[str, float]
@@ -77,16 +84,13 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
             f"s{i}": HybridPredicate(None, str(state)) for i, state in enumerate(self.kripke.states)
         }
         self.guards = {
-            (str(s1), str(s2)): [_condition_into_str(c) for c in self.kripke.labels_for(s2)]
+            (str(s1), str(s2)): _edge_guards(self.kripke, s1, s2)
             for s1 in self.kripke.states
             for s2 in self.kripke.states_from(s1)
         }
 
         predicate_names = list(self.predicates.keys())
         self.formula = _coverage_requirement(predicate_names)
-
-        print(self.formula)
-        pprint(self.guards)
 
     def evaluate(self, state: _States, timestamps: _Times) -> HybridDistance:
         trace: _HybridTrace = {
