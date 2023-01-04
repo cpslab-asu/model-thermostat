@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from math import inf
-from pprint import pprint
 from typing import Sequence, TypeAlias
 
 from banquo import HybridPredicate, hybrid_distance
@@ -27,24 +26,24 @@ def _coverage_requirement(predicate_names: Sequence[str]) -> str:
     return rf"(<> {predicate_name}) /\ ({left_subformula})"
 
 
-def _active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> str:
+def active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> str:
     matching_states = [
         state for state in kripke.states 
         if all(label.is_true(variables) for label in kripke.labels_for(state))
     ]
 
     assert len(matching_states) == 1, f"More than one state active given variables {variables}"
-
     return str(matching_states[0])
 
 
 def _condition_into_str(cond: Condition) -> str:
     if cond.comparison == Comparison.LTE:
         return f"{cond.variable} <= {cond.bound}"
-    elif cond.comparison == Comparison.GTE:
+
+    if cond.comparison == Comparison.GTE:
         return f"{cond.bound} <= {cond.variable}"
-    else:
-        raise ValueError(f"{cond.comparison} is not a Comparison")
+
+    raise ValueError(f"{cond.comparison} is not a Comparison")
 
 
 def _edge_guards(kripke: Kripke[Condition], start: State, end: State) -> list[str]:
@@ -94,7 +93,7 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
 
     def evaluate(self, state: _States, timestamps: _Times) -> HybridDistance:
         trace: _HybridTrace = {
-            time: (output.variables, _active_state(self.kripke, output.variables))
+            time: (output.variables, active_state(self.kripke, output.variables))
             for time, output in zip(timestamps, state)
         }
 
