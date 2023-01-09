@@ -79,17 +79,12 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
         assert len(kripkes) == 1
 
         self.kripke = kripkes[0]
-        self.predicates = {
-            f"s{i}": HybridPredicate(None, str(state)) for i, state in enumerate(self.kripke.states)
-        }
+        self.uncovered_states = set(str(state) for state in self.kripke.states)
         self.guards = {
             (str(s1), str(s2)): _edge_guards(self.kripke, s1, s2)
             for s1 in self.kripke.states
             for s2 in self.kripke.states_from(s1)
         }
-
-        predicate_names = list(self.predicates.keys())
-        self.formula = _coverage_requirement(predicate_names)
 
     def evaluate(self, state: _States, timestamps: _Times) -> HybridDistance:
         trace: _HybridTrace = {
@@ -97,5 +92,13 @@ class ThermostatSpecification(Specification[InstrumentedOutput, HybridDistance])
             for time, output in zip(timestamps, state)
         }
 
-        return hybrid_distance(self.formula, self.predicates, self.guards, trace)
+        covered_states = set(state for _, state in trace.values())
+        self.uncovered_states -= covered_states
+
+        predicates = {
+            f"s{i}": HybridPredicate(None, state) for i, state in enumerate(self.uncovered_states)
+        }
+        formula = _coverage_requirement(list(predicates.keys()))
+
+        return hybrid_distance(formula, predicates, self.guards, trace)
 
