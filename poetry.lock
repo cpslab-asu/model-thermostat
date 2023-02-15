@@ -58,9 +58,9 @@ develop = false
 
 [package.source]
 type = "git"
-url = "git@github.com:cpslab-asu/banquo-python"
-reference = "6bb5d98"
-resolved_reference = "6bb5d98c2b809ed0561eb88c7ca983fddf04ba48"
+url = "git@gitlab.com:sbtg/banquo-python"
+reference = "fa73bc07"
+resolved_reference = "fa73bc07ffd5d8db2629d409e7f3269028694ae2"
 
 [[package]]
 name = "black"
@@ -112,7 +112,7 @@ typing-extensions = "^4.3.0"
 
 [package.source]
 type = "git"
-url = "git@github.com:cpslab-asu/branch-statement-analyzer"
+url = "git@gitlab.com:sbtg/instrumentation/branch-statement-analyzer"
 reference = "af45d5d"
 resolved_reference = "af45d5d09f7d23bf9dcea8e8e5b2b4b9ef1c504a"
 
@@ -1017,4 +1017,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.11"
-content-hash = "2a06ad5c7bef5eea7bafd3ad750d551171974c255d94cd7c377f8f6637257a2f"
+content-hash = "4bfde5359db7d32b7369ff3e6465ba1e9cd68763ee4ac5843cb166f2625fbe8d"
