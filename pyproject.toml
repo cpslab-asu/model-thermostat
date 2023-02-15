@@ -18,8 +18,8 @@ packages = [
 python = ">=3.10,<3.11"
 psy-taliro = "^1.0.0b7"
 numpy = "^1.23.3"
-branch-statement-analyzer = { git = "git@github.com:cpslab-asu/branch-statement-analyzer", rev = "af45d5d" }
-banquo = { git = "git@github.com:cpslab-asu/banquo-python", rev = "6bb5d98" }
+branch-statement-analyzer = { git = "git@gitlab.com:sbtg/instrumentation/branch-statement-analyzer", rev = "af45d5d" }
+banquo = { git = "git@github.com:sbtg/banquo-python", rev = "fa73bc07" }
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"
