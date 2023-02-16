@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import islice
 from typing import Generator, Sequence
 
 import numpy.random as rand
@@ -11,7 +10,11 @@ from .specification import SystemCoverage
 
 
 class UniformRandom(Optimizer[SystemCoverage, None]):
-    """Uniform random optimizer specialized to consume hybrid distance cost values."""
+    """Uniform random optimizer specialized to consume hybrid distance cost values.
+
+    This optimizer will stop generating samples when the number of uncovered states reaches zero.
+    Samples are generated randomly from the input space.
+    """
 
     def optimize(
         self,
@@ -27,11 +30,11 @@ class UniformRandom(Optimizer[SystemCoverage, None]):
             return Sample(tuple(_randinterval(rng, interval) for interval in intervals))
 
         def _randsamples(rng: rand.Generator, intervals: Sequence[Interval]) -> Generator[Sample, None, None]:
-            while True:
+            for _ in range(budget):
                 yield _randsample(rng, intervals)
 
         rng = rand.default_rng(seed)
-        samples = islice(_randsamples(rng, bounds), budget)
+        samples = _randsamples(rng, bounds)
         evaluations = map(func.eval_sample, samples)
 
         for evaluation in evaluations:

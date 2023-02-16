@@ -21,7 +21,11 @@ _ModelResult = ModelResult[InstrumentedOutput, None]
 
 
 class ThermostatModel(Model[InstrumentedOutput, None]):
-    """Thermostat controller model."""
+    """Thermostat controller model.
+
+    Simulate the thermostat model over the interval tspan. Create a trace of instrumented outputs
+    containing both the state of the system and the conditional variables used during execution.
+    """
 
     def __init__(self) -> None:
         self.instr_fn = instrument_function(controller)
@@ -33,7 +37,7 @@ class ThermostatModel(Model[InstrumentedOutput, None]):
         rm1_params = RoomParameters(heat=5.0, cool=inputs.static[2], bias=0.0)
         rm2_params = RoomParameters(heat=5.0, cool=inputs.static[3], bias=0.0)
         sys_params = SystemParameters([rm1_params, rm2_params], [(19.0, 22.0), (19.0, 22.0)])
-        timed_states = []
+        timed_states: list[tuple[float, InstrumentedOutput]] = []
 
         while time < tspan.upper:
             variables, state = self.instr_fn(state, t_step, sys_params)
