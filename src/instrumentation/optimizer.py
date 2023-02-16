@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Sequence
+from itertools import islice
+from typing import Generator, Sequence
 
 import numpy.random as rand
 from staliro.core import Interval, Sample
 from staliro.core.optimizer import ObjectiveFn, Optimizer
 
-from .specification import HybridDistance
+from .specification import SystemCoverage
 
 
-class UniformRandom(Optimizer[HybridDistance, None]):
+class UniformRandom(Optimizer[SystemCoverage, None]):
     """Uniform random optimizer specialized to consume hybrid distance cost values."""
 
     def optimize(
         self,
-        func: ObjectiveFn[HybridDistance],
+        func: ObjectiveFn[SystemCoverage],
         bounds: Sequence[Interval],
         budget: int,
         seed: int,
@@ -23,10 +24,17 @@ class UniformRandom(Optimizer[HybridDistance, None]):
             return interval.lower + rng.random() * interval.length
 
         def _randsample(rng: rand.Generator, intervals: Sequence[Interval]) -> Sample:
-            return Sample([_randinterval(rng, interval) for interval in intervals])
+            return Sample(tuple(_randinterval(rng, interval) for interval in intervals))
+
+        def _randsamples(rng: rand.Generator, intervals: Sequence[Interval]) -> Generator[Sample, None, None]:
+            while True:
+                yield _randsample(rng, intervals)
 
         rng = rand.default_rng(seed)
-        samples = [_randsample(rng, bounds) for _ in range(budget)]
+        samples = islice(_randsamples(rng, bounds), budget)
+        evaluations = map(func.eval_sample, samples)
 
-        for sample in samples:
-            _ = func.eval_sample(sample)
+        for evaluation in evaluations:
+            if evaluation.remaining_states == 0:
+                break
+
