@@ -156,8 +156,8 @@ typing-extensions = "^4.3.0"
 [package.source]
 type = "git"
 url = "git@gitlab.com:sbtg/instrumentation/branch-statement-analyzer"
-reference = "af45d5d"
-resolved_reference = "af45d5d09f7d23bf9dcea8e8e5b2b4b9ef1c504a"
+reference = "b26a35d3"
+resolved_reference = "b26a35d3dd956874f3ad4ae27dc17b1dc97aa958"
 
 [[package]]
 name = "click"
@@ -1812,4 +1812,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.11"
-content-hash = "876cf952f72a7bc2abe4166e6303a66e49b91c2cd7afd254765b8be3a966899b"
+content-hash = "56de7940af207e347ee810b734f10a7a75efdbbb50972c3f941ebd7485480d58"
