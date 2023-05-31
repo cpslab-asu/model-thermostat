@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from math import inf
 from typing import Sequence, TypeAlias
 
-from banquo import HybridPredicate, hybrid_distance
-from bsa.branches import BranchTree, Condition, Comparison
+from banquo import HybridPredicate, hybrid_distance  # pylint: disable=no-name-in-module
+from bsa.branches import BranchTree, Comparison, Condition
 from bsa.kripke import Kripke, State
 from staliro.core.specification import Specification
 
@@ -63,7 +63,8 @@ def active_state(kripke: Kripke[Condition], variables: dict[str, float]) -> str:
     """
 
     matching_states = [
-        state for state in kripke.states 
+        state
+        for state in kripke.states
         if all(label.is_true(variables) for label in kripke.labels_for(state))
     ]
 
@@ -102,7 +103,7 @@ def _edge_guards(kripke: Kripke[Condition], start: State, end: State) -> list[st
     conditions that reference non-existent values.
 
     Args:
-        kripke: The kripke structure 
+        kripke: The kripke structure
         start: The state to start from
         end: The state to end at
 
@@ -147,7 +148,7 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
     After shrinking the unvisited set of states, a hybrid distance formula is generated from the
     unvisited set. This formula will compute the shortest distance to for the function to visit
     one of the uncovered states. This distance is returned as a cost value, along with an integer
-    representing the size of the unvisited set to communicate to the optimizer when full coverage 
+    representing the size of the unvisited set to communicate to the optimizer when full coverage
     has beed achieved and it should stop generating samples.
 
     Attributes:
