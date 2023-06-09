@@ -8,7 +8,16 @@ from .specification import ThermostatSpecification
 spec = ThermostatSpecification()
 model = ThermostatModel()
 options = Options(
-    static_parameters=[(19.0, 22.0), (19.0, 22.0), (0.0, 1.0), (0.0, 1.0)],
+    static_parameters=[
+        (19.0, 22.0),
+        (19.0, 22.0),
+        (19.0, 22.0),
+        (19.0, 22.0),
+        (0.0, 1.0),
+        (0.0, 1.0),
+        (0.0, 1.0),
+        (0.0, 1.0),
+    ],
     iterations=1000,
     runs=1,
 )

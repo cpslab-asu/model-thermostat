@@ -6,7 +6,7 @@ from bsa import instrument_function
 from staliro.core import Interval
 from staliro.core.model import BasicResult, Model, ModelInputs, ModelResult, Trace
 
-from thermostat import CoolingCooling, RoomParameters, State, SystemParameters, controller
+from thermostat import Cooling, RoomParameters, State, SystemParameters, controller
 
 
 @dataclass
@@ -33,14 +33,17 @@ class ThermostatModel(Model[InstrumentedOutput, None]):
     def simulate(self, inputs: ModelInputs, tspan: Interval) -> _ModelResult:
         t_step = 0.1
         time = tspan.lower
-        state = CoolingCooling(inputs.static[0], inputs.static[1])
-        rm1_params = RoomParameters(heat=5.0, cool=inputs.static[2], bias=0.0)
-        rm2_params = RoomParameters(heat=5.0, cool=inputs.static[3], bias=0.0)
-        sys_params = SystemParameters([rm1_params, rm2_params], [(19.0, 22.0), (19.0, 22.0)])
+        state = Cooling(inputs.static[0], inputs.static[1], inputs.static[2], inputs.static[3])
+        params = SystemParameters(
+            room1=RoomParameters(heat=5.0, cool=inputs.static[4], bias=0.0, bounds=(19.0, 22.0)),
+            room2=RoomParameters(heat=5.0, cool=inputs.static[5], bias=0.0, bounds=(19.0, 22.0)),
+            room3=RoomParameters(heat=5.0, cool=inputs.static[6], bias=0.0, bounds=(19.0, 22.0)),
+            room4=RoomParameters(heat=5.0, cool=inputs.static[7], bias=0.0, bounds=(19.0, 22.0)),
+        )
         timed_states: list[tuple[float, InstrumentedOutput]] = []
 
         while time < tspan.upper:
-            variables, state = self.instr_fn(state, t_step, sys_params)
+            variables, state = self.instr_fn(state, t_step, params)
             time = time + t_step
             timed_states.append((time, InstrumentedOutput(variables, state)))
 

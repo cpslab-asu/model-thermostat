@@ -220,29 +220,29 @@ def controller(state: State, step_size: float, params: SystemParameters) -> Stat
     """
 
     t1 = state.t1
-    r1_lower, r1_upper = params.room1.bounds
+    lowerr1, upperr1 = params.room1.bounds
 
-    if t1 <= r1_lower:
+    if t1 <= lowerr1:
         next_state = _heating1(state)
-    elif t1 >= r1_upper:
+    elif t1 >= upperr1:
         t2 = state.t2
-        r2_lower, r2_upper = params.room2.bounds
+        lowerr2, upperr2 = params.room2.bounds
 
-        if t2 <= r2_lower:
+        if t2 <= lowerr2:
             next_state = _heating2(state)
-        elif t2 >= r2_upper:
+        elif t2 >= upperr2:
             t3 = state.t3
-            r3_lower, r3_upper = params.room3.bounds
+            lowerr3, upperr3 = params.room3.bounds
 
-            if t3 <= r3_lower:
+            if t3 <= lowerr3:
                 next_state = _heating3(state)
-            elif t3 >= r3_upper:
+            elif t3 >= upperr3:
                 t4 = state.t4
-                r4_lower, r4_upper = params.room4.bounds
+                lowerr4, upperr4 = params.room4.bounds
 
-                if t4 <= r4_lower:
+                if t4 <= lowerr4:
                     next_state = _heating4(state)
-                elif t4 >= r4_upper:
+                elif t4 >= upperr4:
                     next_state = _cooling(state)
                 else:
                     next_state = state
