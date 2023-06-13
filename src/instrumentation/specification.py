@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import inf
 from typing import Sequence, TypeAlias
 
-from banquo import HybridPredicate, hybrid_distance  # pylint: disable=no-name-in-module
+from banquo import HybridPredicate, hybrid_distance, robustness  # pylint: disable=no-name-in-module
 from bsa.branches import BranchTree, Comparison, Condition
 from bsa.kripke import Kripke, State
 from staliro.core.specification import Specification
@@ -199,3 +199,26 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
             distance = (0, inf)
 
         return SystemCoverage(len(self.uncovered_states), distance)
+
+
+@dataclass()
+class SafetyAndCoverage:
+    safety: float
+    coverage: SystemCoverage
+
+
+class ThermostatRequirement(Specification[InstrumentedOutput, SafetyAndCoverage]):
+    def __init__(self, formula: str):
+        self.coverage_spec = ThermostatSpecification()
+        self.formula = formula
+
+    @property
+    def failure_cost(self) -> SafetyAndCoverage:
+        raise NotImplementedError()
+
+    def evaluate(self, state: _States, timestamps: _Times) -> SafetyAndCoverage:
+        coverage = self.coverage_spec.evaluate(state, timestamps)
+        trace = {time: state.variables for time, state in zip(timestamps, state)}
+        safety = robustness(self.formula, trace)
+
+        return SafetyAndCoverage(safety, coverage)
