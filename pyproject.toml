@@ -16,11 +16,11 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
-psy-taliro = "^1.0.0b7"
+psy-taliro = { git = "git@github.com:cpslab-asu/psy-taliro", rev = "e8a7e9e" }
 numpy = "^1.23.3"
 branch-statement-analyzer = { git = "git@gitlab.com:sbtg/instrumentation/branch-statement-analyzer", rev = "b26a35d3" }
 banquo = { git = "git@gitlab.com:sbtg/banquo-python", rev = "fa73bc07" }
-pysoarc = { git = "git@gitlab.com:sbtg/pysoar-c", rev ="71a1d720" }
+pysoarc = { git = "git@gitlab.com:sbtg/pysoar-c", rev ="0e855f11" }
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"
