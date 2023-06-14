@@ -10,7 +10,8 @@ authors = ["Quinn Thibeault"]
 license = "BSD-3-Clause"
 packages = [
     { include = "thermostat.py", from = "src" },
-    { include = "instrumentation", from = "src" }
+    { include = "instrumentation", from = "src" },
+    { include = "demo", from = "src" },
 ]
 
 
@@ -30,7 +31,8 @@ black = "^22.8.0"
 isort = "^5.10.1"
 
 [tool.poetry.scripts]
-main = "instrumentation.__main__:main"
+coverage = "demo.coverage:main"
+safety = "demo.safety:main"
 
 [tool.black]
 line-length = 100
