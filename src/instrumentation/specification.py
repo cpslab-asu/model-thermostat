@@ -216,6 +216,10 @@ class ThermostatRequirement(Specification[InstrumentedOutput, SafetyAndCoverage]
     def failure_cost(self) -> SafetyAndCoverage:
         raise NotImplementedError()
 
+    @property
+    def kripke(self) -> Kripke[Condition]:
+        return self.coverage_spec.kripke
+
     def evaluate(self, state: _States, timestamps: _Times) -> SafetyAndCoverage:
         coverage = self.coverage_spec.evaluate(state, timestamps)
         trace = {time: state.variables for time, state in zip(timestamps, state)}
