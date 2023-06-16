@@ -11,10 +11,10 @@ from pysoarc.gprInterface import InternalGPR
 from staliro.core import Interval, Sample
 from staliro.core.optimizer import ObjectiveFn, Optimizer
 
-from .specification import SystemCoverage
+from .specification import SafetyAndCoverage
 
 
-class UniformRandom(Optimizer[SystemCoverage, None]):
+class UniformRandom(Optimizer[SafetyAndCoverage, None]):
     """Uniform random optimizer specialized to consume hybrid distance cost values.
 
     This optimizer will stop generating samples when the number of uncovered states reaches zero.
@@ -23,7 +23,7 @@ class UniformRandom(Optimizer[SystemCoverage, None]):
 
     def optimize(
         self,
-        func: ObjectiveFn[SystemCoverage],
+        func: ObjectiveFn[SafetyAndCoverage],
         bounds: Sequence[Interval],
         budget: int,
         seed: int,
@@ -34,7 +34,9 @@ class UniformRandom(Optimizer[SystemCoverage, None]):
         def _randsample(rng: rand.Generator, intervals: Sequence[Interval]) -> Sample:
             return Sample(tuple(_randinterval(rng, interval) for interval in intervals))
 
-        def _randsamples(rng: rand.Generator, intervals: Sequence[Interval]) -> Generator[Sample, None, None]:
+        def _randsamples(
+            rng: rand.Generator, intervals: Sequence[Interval]
+        ) -> Generator[Sample, None, None]:
             for _ in range(budget):
                 yield _randsample(rng, intervals)
 
@@ -46,23 +48,28 @@ class UniformRandom(Optimizer[SystemCoverage, None]):
             if evaluation.remaining_states == 0:
                 break
 
-class SOAR(Optimizer[SystemCoverage, None]):
+
+class SOAR(Optimizer[SafetyAndCoverage, None]):
     def optimize(
         self,
-        func: ObjectiveFn[SystemCoverage],
+        func: ObjectiveFn[SafetyAndCoverage],
         bounds: Sequence[Interval],
         budget: int,
-        seed: int
+        seed: int,
     ) -> None:
-        def _test_fn(input: NDArray[np.double]) -> Optional[tuple[float, float]]:
-            if input.ndim != 1:
+        def _test_fn(inputs: NDArray[np.double]) -> Optional[NDArray[np.double]]:
+            if inputs.ndim != 1:
                 raise ValueError("Input array must be 1-d")
 
-            sample = Sample(tuple(input.tolist()))
+            sample = Sample(tuple(inputs.tolist()))
             cov = func.eval_sample(sample)
-            return None if cov.remaining_states == 0 else cov.hybrid_distance
 
-        _ = PySOARC(
+            if cov.remaining_states == 0:
+                return None
+
+            return np.array([cov.safety, cov.hybrid_distance])
+
+        PySOARC(
             n_0=20,
             nSamples=budget,
             trs_max_budget=5,
@@ -82,5 +89,3 @@ class SOAR(Optimizer[SystemCoverage, None]):
             local_search="gp_local_search",
             behavior=Behavior.COVERAGE,
         )
-        
-        return None
