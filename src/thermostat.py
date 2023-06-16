@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple, TypeVar
+from typing import List, Tuple, TypedDict, TypeVar
 
 T = TypeVar("T")
 Trace = List[Tuple[float, T]]
@@ -55,6 +55,13 @@ class SystemParameters:
     room4: RoomParameters
 
 
+class StateDict(TypedDict):
+    t1: float
+    t2: float
+    t3: float
+    t4: float
+
+
 class State(ABC):
     """Abstract representation of a 2-room thermostat controller state.
 
@@ -68,6 +75,10 @@ class State(ABC):
         self.t2 = t2
         self.t3 = t3
         self.t4 = t4
+
+    def to_dict(self) -> StateDict:
+        """Convert state to dictionary."""
+        return StateDict(t1=self.t1, t2=self.t2, t3=self.t3, t4=self.t4)
 
     @abstractmethod
     def step(self: T, step_size: float, params: SystemParameters) -> T:
