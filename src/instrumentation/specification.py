@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import inf
-from typing import Sequence, TypeAlias
+from typing import Sequence, TypeAlias, cast
 
 from banquo import HybridPredicate, hybrid_distance, robustness  # pylint: disable=no-name-in-module
 from bsa.branches import BranchTree, Comparison, Condition
@@ -124,7 +124,7 @@ _HybridTrace: TypeAlias = dict[float, tuple[_VariableMap, str]]
 
 
 @dataclass(frozen=True)
-class SystemCoverage:
+class SafetyAndCoverage:
     """Specification output type
 
     Attributes:
@@ -133,10 +133,11 @@ class SystemCoverage:
     """
 
     remaining_states: int
-    hybrid_distance: tuple[float, float]
+    safety: float
+    hybrid_distance: float
 
 
-class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage]):
+class ThermostatSpecification(Specification[InstrumentedOutput, SafetyAndCoverage]):
     """Hybrid distance specification.
 
     This specification maintains a set of unvisited states of the instrumented function. When a
@@ -158,8 +159,8 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
     """
 
     @property
-    def failure_cost(self) -> SystemCoverage:
-        return SystemCoverage(0, (-inf, -inf))
+    def failure_cost(self) -> SafetyAndCoverage:
+        return SafetyAndCoverage(0, -inf, -inf)
 
     def __init__(self) -> None:
         trees = BranchTree.from_function(controller)
@@ -179,7 +180,7 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
             for s2 in self.kripke.states_from(s1)
         }
 
-    def evaluate(self, state: _States, timestamps: _Times) -> SystemCoverage:
+    def evaluate(self, state: _States, timestamps: _Times) -> SafetyAndCoverage:
         trace: _HybridTrace = {
             time: (output.variables, active_state(self.kripke, output.variables))
             for time, output in zip(timestamps, state)
@@ -194,17 +195,11 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
 
         if len(predicates) > 0:
             formula = _coverage_requirement(list(predicates.keys()))
-            distance = hybrid_distance(formula, predicates, self.guards, trace)
+            _, distance = hybrid_distance(formula, predicates, self.guards, trace)
         else:
-            distance = (0, inf)
+            distance = inf
 
-        return SystemCoverage(len(self.uncovered_states), distance)
-
-
-@dataclass()
-class SafetyAndCoverage:
-    safety: float
-    coverage: SystemCoverage
+        return SafetyAndCoverage(len(self.uncovered_states), 1.0, distance)
 
 
 class ThermostatRequirement(Specification[InstrumentedOutput, SafetyAndCoverage]):
@@ -221,8 +216,11 @@ class ThermostatRequirement(Specification[InstrumentedOutput, SafetyAndCoverage]
         return self.coverage_spec.kripke
 
     def evaluate(self, state: _States, timestamps: _Times) -> SafetyAndCoverage:
-        coverage = self.coverage_spec.evaluate(state, timestamps)
-        trace = {time: state.variables for time, state in zip(timestamps, state)}
+        def state_dict(state: InstrumentedOutput) -> dict[str, float]:
+            return cast(dict[str, float], state.state.to_dict())
+
+        cov = self.coverage_spec.evaluate(state, timestamps)
+        trace = {time: state_dict(state) for time, state in zip(timestamps, state)}
         safety = robustness(self.formula, trace)
 
-        return SafetyAndCoverage(safety, coverage)
+        return SafetyAndCoverage(cov.remaining_states, safety, cov.hybrid_distance)
