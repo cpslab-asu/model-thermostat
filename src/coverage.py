@@ -7,7 +7,7 @@ from staliro.staliro import staliro
 from cli import parser
 from instrumentation.model import InstrumentedOutput, Thermostat2Rooms, Thermostat4Rooms
 from instrumentation.optimizer import SOAR, UniformRandom
-from instrumentation.specification import ThermostatSpecification
+from instrumentation.specification import CoverageSpec
 from thermostat import Controller, controller_2rooms, controller_4rooms
 
 logger = logging.getLogger("coverage")
@@ -32,8 +32,9 @@ def main():
 
     options = Options(
         static_parameters=static_params,
-        iterations=1000,
+        iterations=5,
         runs=1,
+        seed=1296278124,
     )
 
     logger.debug("====Options====")
@@ -42,7 +43,7 @@ def main():
     logger.debug(f"Iterations: {options.iterations}")
     logger.debug(f"Static parameters: {static_params}")
 
-    ur_spec = ThermostatSpecification(controller)
+    ur_spec = CoverageSpec(controller)
 
     logger.debug("Beginning uniform random execution")
     ur_result = staliro(model, ur_spec, UniformRandom(), options)
@@ -51,7 +52,7 @@ def main():
     ur_run = ur_result.runs[0]
     ur_best = min((e.cost for e in ur_run.history), key=lambda c: c.remaining_states)
 
-    soar_spec = ThermostatSpecification(controller)
+    soar_spec = CoverageSpec(controller)
 
     logger.debug("Beginning SOAR execution")
     soar_result = staliro(model, soar_spec, SOAR(), options)
