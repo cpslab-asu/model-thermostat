@@ -138,7 +138,7 @@ class CoverageSafety:
     coverage: float
 
 
-class ThermostatSpecification(Specification[InstrumentedOutput, CoverageSafety]):
+class CoverageSpec(Specification[InstrumentedOutput, CoverageSafety]):
     """Hybrid distance specification.
 
     This specification maintains a set of unvisited states of the instrumented function. When a
@@ -203,6 +203,7 @@ class ThermostatSpecification(Specification[InstrumentedOutput, CoverageSafety])
 
         if len(predicates) > 0:
             formula = _coverage_requirement(list(predicates.keys()))
+            self.logger.debug(f"Coverage formula: {formula}")
             safety = 1.0
             _, coverage = hybrid_distance(formula, predicates, self.guards, trace)
         else:
@@ -221,22 +222,36 @@ def _state_dict(state: InstrumentedOutput) -> dict[str, float]:
     }
 
 
-class ThermostatRequirement(Specification[InstrumentedOutput, CoverageSafety]):
-    def __init__(self, formula: str, controller: Controller):
+class RobustnessSpec(Specification[InstrumentedOutput, CoverageSafety]):
+    def __init__(self, formula: str):
         self.formula = formula
-        self.spec = ThermostatSpecification(controller)
 
     @property
     def failure_cost(self) -> CoverageSafety:
-        return self.spec.failure_cost
-
-    @property
-    def kripke(self) -> Kripke[Condition]:
-        return self.spec.kripke
+        return CoverageSafety(0, -inf, -inf)
 
     def evaluate(self, state: _States, timestamps: _Times) -> CoverageSafety:
-        result = self.spec.evaluate(state, timestamps)
         trace = {time: _state_dict(s) for (time, s) in zip(timestamps, state)}
         safety = robustness(self.formula, trace)
 
-        return CoverageSafety(result.remaining_states, safety, result.coverage)
+        return CoverageSafety(1, safety, -inf)
+
+
+class CoverageRobustnessSpec(Specification[InstrumentedOutput, CoverageSafety]):
+    def __init__(self, formula: str, controller: Controller):
+        self.cov_spec = CoverageSpec(controller)
+        self.rob_spec = RobustnessSpec(formula)
+
+    @property
+    def failure_cost(self) -> CoverageSafety:
+        return CoverageSafety(0, -inf, -inf)
+
+    @property
+    def kripke(self) -> Kripke[Condition]:
+        return self.cov_spec.kripke
+
+    def evaluate(self, state: _States, timestamps: _Times) -> CoverageSafety:
+        cov_result = self.cov_spec.evaluate(state, timestamps)
+        rob_result = self.rob_spec.evaluate(state, timestamps)
+
+        return CoverageSafety(cov_result.remaining_states, rob_result.safety, cov_result.coverage)
