@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple, TypeVar
+from typing import List, Protocol, Tuple, TypeVar
+
+from typing_extensions import Self
 
 T = TypeVar("T")
 Trace = List[Tuple[float, T]]
@@ -26,18 +28,17 @@ class RoomParameters:
     heat: float
     cool: float
     bias: float
+    bounds: tuple[float, float]
 
+    def step_heat(self, step_size: float, temp: float) -> float:
+        deriv = self.heat - self.cool * temp
+        temp_ = temp + step_size * deriv
+        return temp_ + self.bias
 
-def _heat(params: RoomParameters, step_size: float, temp: float) -> float:
-    deriv = params.heat - params.cool * temp
-    temp_ = temp + step_size * deriv
-    return temp_ + params.bias
-
-
-def _cool(params: RoomParameters, step_size: float, temp: float) -> float:
-    deriv = params.cool * temp
-    temp_ = temp - step_size * deriv
-    return temp_ + params.bias
+    def step_cool(self, step_size: float, temp: float) -> float:
+        deriv = self.cool * temp
+        temp_ = temp - step_size * deriv
+        return temp_ + self.bias
 
 
 @dataclass()
@@ -48,20 +49,35 @@ class SystemParameters:
         rooms: The parameters of each room
     """
 
-    rooms: Sequence[RoomParameters]
-    op_range: Sequence[Tuple[float, float]]
+    room1: RoomParameters
+    room2: RoomParameters
+    room3: RoomParameters
+    room4: RoomParameters
 
 
 class State(ABC):
     """Abstract representation of a 2-room thermostat controller state.
 
     Properties:
-        temp1: The temperature of room 1
-        temp2: The temperature of room 2
+        room1: The temperature of room 1
+        room2: The temperature of room 2
+        room3: The temperature of room 2
+        room4: The temperature of room 2
     """
 
-    temp1: float
-    temp2: float
+    room1: float
+    room2: float
+    room3: float
+    room4: float
+
+    def __init__(self, room1: float, room2: float, room3: float, room4: float):
+        self.room1 = room1
+        self.room2 = room2
+        self.room3 = room3
+        self.room4 = room4
+
+    def _stringify(self, name: str) -> str:
+        return f"{name}(room1={self.room1}, room2={self.room2}, room3={self.room3}, room4={self.room4})"
 
     @abstractmethod
     def step(self: T, step_size: float, params: SystemParameters) -> T:
@@ -76,89 +92,105 @@ class State(ABC):
         """
         raise NotImplementedError()
 
+    @classmethod
+    def from_state(cls, state: State) -> Self:
+        if isinstance(state, cls):
+            return state
 
-class HeatingCooling(State):
+        return cls(state.room1, state.room2, state.room3, state.room4)
+
+
+class Heating1(State):
     """Thermostat controller state that represents heating room 1 and cooling room 2."""
 
-    def __init__(self, temp1: float, temp2: float):
-        self.temp1 = temp1
-        self.temp2 = temp2
-
     def __str__(self) -> str:
-        return f"Heating(temp1={self.temp1}, temp2={self.temp2})"
+        return self._stringify("Heating1")
 
     def __repr__(self) -> str:
         return str(self)
 
-    def step(self, step_size: float, params: SystemParameters) -> HeatingCooling:
-        return HeatingCooling(
-            _heat(params.rooms[0], step_size, self.temp1),
-            _cool(params.rooms[1], step_size, self.temp2),
+    def step(self, step_size: float, params: SystemParameters) -> Heating1:
+        return Heating1(
+            params.room1.step_heat(step_size, self.room1),
+            params.room2.step_cool(step_size, self.room2),
+            params.room3.step_cool(step_size, self.room3),
+            params.room4.step_cool(step_size, self.room4),
         )
 
 
-class CoolingHeating(State):
+class Heating2(State):
     """Thermostat controller state that represents cooling room 1 and heating room 2."""
 
-    def __init__(self, temp1: float, temp2: float):
-        self.temp1 = temp1
-        self.temp2 = temp2
-
     def __str__(self) -> str:
-        return f"Heating(temp1={self.temp1}, temp2={self.temp2})"
+        return self._stringify("Heating2")
 
     def __repr__(self) -> str:
         return str(self)
 
-    def step(self, step_size: float, params: SystemParameters) -> CoolingHeating:
-        return CoolingHeating(
-            _cool(params.rooms[0], step_size, self.temp1),
-            _heat(params.rooms[1], step_size, self.temp2),
+    def step(self, step_size: float, params: SystemParameters) -> Heating2:
+        return Heating2(
+            params.room1.step_cool(step_size, self.room1),
+            params.room2.step_heat(step_size, self.room2),
+            params.room3.step_cool(step_size, self.room3),
+            params.room4.step_cool(step_size, self.room4),
         )
 
 
-class CoolingCooling(State):
+class Heating3(State):
     """Thermostat controller state representing cooling rooms 1 and 2."""
 
-    def __init__(self, temp1: float, temp2: float):
-        self.temp1 = temp1
-        self.temp2 = temp2
-
     def __str__(self) -> str:
-        return f"Cooling(temp1={self.temp1}, temp2={self.temp2})"
+        return self._stringify("Heating3")
 
     def __repr__(self) -> str:
         return str(self)
 
-    def step(self, step_size: float, params: SystemParameters) -> CoolingCooling:
-        return CoolingCooling(
-            _cool(params.rooms[0], step_size, self.temp1),
-            _cool(params.rooms[1], step_size, self.temp2),
+    def step(self, step_size: float, params: SystemParameters) -> Heating3:
+        return Heating3(
+            params.room1.step_cool(step_size, self.room1),
+            params.room2.step_cool(step_size, self.room2),
+            params.room3.step_heat(step_size, self.room3),
+            params.room4.step_cool(step_size, self.room4),
         )
 
 
-def _heating_cooling_step(state: State) -> State:
-    if isinstance(state, HeatingCooling):
-        return state
+class Heating4(State):
+    """Thermostat controller state representing cooling rooms 1 and 2."""
 
-    return HeatingCooling(state.temp1, state.temp2)
+    def __str__(self) -> str:
+        return self._stringify("Heating4")
 
+    def __repr__(self) -> str:
+        return str(self)
 
-def _cooling_heating_step(state: State) -> State:
-    if isinstance(state, CoolingHeating):
-        return state
-
-    return CoolingHeating(state.temp1, state.temp2)
-
-
-def _cooling_cooling_step(state: State) -> State:
-    if isinstance(state, CoolingCooling):
-        return state
-
-    return CoolingCooling(state.temp1, state.temp2)
+    def step(self, step_size: float, params: SystemParameters) -> Heating3:
+        return Heating3(
+            params.room1.step_cool(step_size, self.room1),
+            params.room2.step_cool(step_size, self.room2),
+            params.room3.step_cool(step_size, self.room3),
+            params.room4.step_heat(step_size, self.room4),
+        )
 
 
-def controller(state: State, step_size: float, params: SystemParameters) -> State:
+class Cooling(State):
+    """Thermostat controller state representing cooling rooms 1 and 2."""
+
+    def __str__(self) -> str:
+        return self._stringify("Cooling")
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def step(self, step_size: float, params: SystemParameters) -> Heating3:
+        return Heating3(
+            params.room1.step_cool(step_size, self.room1),
+            params.room2.step_cool(step_size, self.room2),
+            params.room3.step_cool(step_size, self.room3),
+            params.room4.step_cool(step_size, self.room4),
+        )
+
+
+def controller_2rooms(state: State, step_size: float, params: SystemParameters) -> State:
     """Thermostat controller that handles switching between states.
 
     Arguments:
@@ -169,18 +201,18 @@ def controller(state: State, step_size: float, params: SystemParameters) -> Stat
         The next state
     """
 
-    lr1, hr1 = params.op_range[0]
-    lr2, hr2 = params.op_range[1]
-    temp1 = state.temp1
-    temp2 = state.temp2
+    lr1, hr1 = params.room1.bounds
+    lr2, hr2 = params.room2.bounds
+    temp1 = state.room1
+    temp2 = state.room2
 
     if temp1 <= lr1:
-        next_state = _heating_cooling_step(state)
+        next_state = Heating1.from_state(state)
     elif temp1 >= hr1:
         if temp2 <= lr2:
-            next_state = _cooling_heating_step(state)
+            next_state = Heating2.from_state(state)
         elif temp2 >= hr2:
-            next_state = _cooling_cooling_step(state)
+            next_state = Cooling.from_state(state)
         else:
             next_state = state
     else:
@@ -191,7 +223,65 @@ def controller(state: State, step_size: float, params: SystemParameters) -> Stat
     return next_step
 
 
-def run(init: State, t_stop: float, t_start: float = 0.0, t_step: float = 1.0) -> Trace[State]:
+def controller_4rooms(state: State, step_size: float, params: SystemParameters) -> State:
+    """Thermostat controller that handles switching between states.
+
+    Arguments:
+        state: The current state
+        step_size: The length of the simulation interval
+
+    Returns:
+        The next state
+    """
+
+    lr1, hr1 = params.room1.bounds
+    lr2, hr2 = params.room2.bounds
+    lr3, hr3 = params.room3.bounds
+    lr4, hr4 = params.room4.bounds
+
+    temp1 = state.room1
+    temp2 = state.room2
+    temp3 = state.room3
+    temp4 = state.room4
+
+    if temp1 <= lr1:
+        next_state = Heating1.from_state(state)
+    elif temp1 >= hr1:
+        if temp2 <= lr2:
+            next_state = Heating2.from_state(state)
+        elif temp2 >= hr2:
+            if temp3 <= lr3:
+                next_state = Heating3.from_state(state)
+            elif temp3 >= hr3:
+                if temp4 <= lr4:
+                    next_state = Heating4.from_state(state)
+                elif temp4 >= hr4:
+                    next_state = Cooling.from_state(state)
+                else:
+                    next_state = state
+            else:
+                next_state = state
+        else:
+            next_state = state
+    else:
+        next_state = state
+
+    next_step = next_state.step(step_size, params)
+    return next_step
+
+
+class Controller(Protocol):
+    def __call__(self, state: State, step_size: float, params: SystemParameters) -> State:
+        ...
+
+
+def run(
+    controller: Controller,
+    init: State,
+    t_stop: float,
+    t_start: float = 0.0,
+    t_step: float = 1.0,
+) -> Trace[State]:
     """Run the thermostat controller over the interval (t_start, t_stop) in increments of t_step.
 
     Arguments:
@@ -206,8 +296,10 @@ def run(init: State, t_stop: float, t_start: float = 0.0, t_step: float = 1.0) -
     time = t_start
     state = init
     trace = [(time, state)]
-    rm_params = RoomParameters(5.0, 0.1, 0.0)
-    sys_params = SystemParameters([rm_params, rm_params], [(19.0, 22.0), (19.0, 22.0)])
+    rm_params = RoomParameters(heat=5.0, cool=0.1, bias=0.0, bounds=(19.0, 22.0))
+    sys_params = SystemParameters(
+        room1=rm_params, room2=rm_params, room3=rm_params, room4=rm_params
+    )
 
     while time < t_stop:
         state = controller(state, t_step, sys_params)
