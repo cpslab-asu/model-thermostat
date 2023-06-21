@@ -19,3 +19,4 @@ ruff = "*"
 [scripts]
 coverage = "python3 src/coverage.py"
 safety = "python3 src/safety.py"
+both = "python3 src/coverage_safety.py"
