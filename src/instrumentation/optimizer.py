@@ -70,7 +70,7 @@ class SOAR(Optimizer[CoverageSafety, None]):
             return (result.safety, abs(result.coverage))
 
         _ = PySOARC(
-            n_0=20,
+            n_0=2,
             nSamples=budget,
             trs_max_budget=5,
             max_loc_iter=5,
