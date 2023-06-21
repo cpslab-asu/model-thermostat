@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from math import inf
 from typing import Sequence, TypeAlias
 
-from banquo import HybridPredicate, hybrid_distance  # pylint: disable=no-name-in-module
+from banquo import HybridPredicate, hybrid_distance, robustness  # pylint: disable=no-name-in-module
 from bsa.branches import BranchTree, Comparison, Condition
 from bsa.kripke import Kripke, State
 from staliro.core.specification import Specification
 
-from thermostat import controller
+from thermostat import Controller
 
 from .model import InstrumentedOutput
 
@@ -124,7 +125,7 @@ _HybridTrace: TypeAlias = dict[float, tuple[_VariableMap, str]]
 
 
 @dataclass(frozen=True)
-class SystemCoverage:
+class CoverageSafety:
     """Specification output type
 
     Attributes:
@@ -133,10 +134,11 @@ class SystemCoverage:
     """
 
     remaining_states: int
-    hybrid_distance: tuple[float, float]
+    safety: float
+    coverage: float
 
 
-class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage]):
+class ThermostatSpecification(Specification[InstrumentedOutput, CoverageSafety]):
     """Hybrid distance specification.
 
     This specification maintains a set of unvisited states of the instrumented function. When a
@@ -158,10 +160,10 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
     """
 
     @property
-    def failure_cost(self) -> SystemCoverage:
-        return SystemCoverage(0, (-inf, -inf))
+    def failure_cost(self) -> CoverageSafety:
+        return CoverageSafety(0, -inf, -inf)
 
-    def __init__(self) -> None:
+    def __init__(self, controller: Controller) -> None:
         trees = BranchTree.from_function(controller)
 
         assert len(trees) == 1
@@ -178,15 +180,22 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
             for s1 in self.kripke.states
             for s2 in self.kripke.states_from(s1)
         }
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug(f"Controller states to cover: {len(self.uncovered_states)}")
 
-    def evaluate(self, state: _States, timestamps: _Times) -> SystemCoverage:
+    def evaluate(self, state: _States, timestamps: _Times) -> CoverageSafety:
         trace: _HybridTrace = {
             time: (output.variables, active_state(self.kripke, output.variables))
             for time, output in zip(timestamps, state)
         }
 
         covered_states = set(state for _, state in trace.values())
+        n_prev_uncovered = len(self.uncovered_states)
         self.uncovered_states -= covered_states
+        n_uncovered = len(self.uncovered_states)
+
+        if n_uncovered < n_prev_uncovered:
+            self.logger.debug(f"Controller states remaining: {n_uncovered}")
 
         predicates = {
             f"s{i}": HybridPredicate(None, state) for i, state in enumerate(self.uncovered_states)
@@ -194,8 +203,40 @@ class ThermostatSpecification(Specification[InstrumentedOutput, SystemCoverage])
 
         if len(predicates) > 0:
             formula = _coverage_requirement(list(predicates.keys()))
-            distance = hybrid_distance(formula, predicates, self.guards, trace)
+            safety = 1.0
+            _, coverage = hybrid_distance(formula, predicates, self.guards, trace)
         else:
-            distance = (0, inf)
+            safety = 0.0
+            coverage = inf
 
-        return SystemCoverage(len(self.uncovered_states), distance)
+        return CoverageSafety(len(self.uncovered_states), safety, coverage)
+
+
+def _state_dict(state: InstrumentedOutput) -> dict[str, float]:
+    return {
+        "room1": state.state.room1,
+        "room2": state.state.room2,
+        "room3": state.state.room3,
+        "room4": state.state.room4,
+    }
+
+
+class ThermostatRequirement(Specification[InstrumentedOutput, CoverageSafety]):
+    def __init__(self, formula: str, controller: Controller):
+        self.formula = formula
+        self.spec = ThermostatSpecification(controller)
+
+    @property
+    def failure_cost(self) -> CoverageSafety:
+        return self.spec.failure_cost
+
+    @property
+    def kripke(self) -> Kripke[Condition]:
+        return self.spec.kripke
+
+    def evaluate(self, state: _States, timestamps: _Times) -> CoverageSafety:
+        result = self.spec.evaluate(state, timestamps)
+        trace = {time: _state_dict(s) for (time, s) in zip(timestamps, state)}
+        safety = robustness(self.formula, trace)
+
+        return CoverageSafety(result.remaining_states, safety, result.coverage)
