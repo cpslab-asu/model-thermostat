@@ -1,8 +1,5 @@
 {
     "[python]": {
-        "gitlens.codeLens.symbolScopes": [
-            "!Module"
-        ],
         "editor.wordBasedSuggestions": false,
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "ms-python.black-formatter",
@@ -14,7 +11,5 @@
             100
         ]
     },
-    "python.linting.mypyEnabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.typeCheckingMode": "strict",
 }
