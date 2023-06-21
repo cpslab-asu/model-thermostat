@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[requires]
+python_version = "3.10"
+
+[packages]
+psy-taliro = "==1.0.0b8"
+pysoarc = {ref = "0e855f11", git = "https://gitlab.com/sbtg/pysoar-c"}
+branch-statement-analyzer = "==1.0.0"
+banquo = {ref = "fa73bc07", git = "https://gitlab.com/sbtg/banquo-python"}
+
+[dev-packages]
+black = "*"
+ruff = "*"
+
+[scripts]
+coverage = "python3 src/coverage.py"
+safety = "python3 src/safety.py"
